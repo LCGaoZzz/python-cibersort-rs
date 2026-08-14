@@ -154,20 +154,30 @@ See [the validation summary](tests/validation_summary.md) and the tests under
 
 Measurements were collected on a shared Windows workstation with 16 CPU cores
 and 33.8 GB RAM. Every timing uses synthetic data, `perm=100`, `QN=False`,
-`seed=42`, and five repetitions for the Rust scaling table.
+`seed=42`, and three to five repetitions for the Rust scaling table
+(re-measured 2026-08-14 after the solver optimization below).
 
 ### Rust thread scaling
 
 | Dataset | Matrix and samples | 1 thread | 4 threads | 8 threads | 16 threads |
 |---|---|---:|---:|---:|---:|
-| Small | 100 genes x 8 types, 4 samples | 0.541 s | 0.171 s (3.2x) | 0.136 s (4.0x) | 0.112 s (4.9x) |
-| Medium | 300 genes x 12 types, 20 samples | 8.61 s | 4.70 s (1.8x) | 3.41 s (2.5x) | 3.02 s (2.9x) |
-| Large | 547 genes x 22 types, 50 samples | 210.2 s | 55.3 s (3.8x) | 38.6 s (5.5x) | 32.6 s (6.4x) |
+| Small | 100 genes x 8 types, 4 samples | 0.308 s | 0.169 s (1.8x) | 0.126 s (2.4x) | 0.105 s (2.9x) |
+| Medium | 300 genes x 12 types, 20 samples | 5.64 s | 2.25 s (2.5x) | 1.62 s (3.5x) | 1.37 s (4.1x) |
+| Large | 547 genes x 22 types, 50 samples | 44.5 s | 14.6 s (3.0x) | 14.7 s (3.0x) | 7.32 s (6.1x) |
 
-At eight threads, Rust took 0.136, 3.41, and 38.58 seconds for the small,
-medium, and large fixtures. The corresponding LIBSVM engine timings were 2.67,
-11.53, and 49.40 seconds. On the 330-gene correctness fixture, Rust was
-approximately 2.5x to 4.3x faster than the original R script for `perm=100`.
+### Solver data-movement optimization (2026-08)
+
+PR #1 rewrote the nu-SVR solver's hot loop with pure data-movement changes: a
+signed permuted Gram matrix with zero-copy `get_Q` row access, plus
+auto-vectorized (zip-form) gradient updates. No floating-point operation order
+changed, so outputs — including permutation P-values — are **bit-identical**
+to the previous implementation. In a controlled same-session comparison on
+this workstation the large fixture improved from 118.0 s to 37.9 s at one
+thread (3.1x) and from 8.7 s to 3.6 s at sixteen threads (2.4x); quiet-window
+single-thread runs reached 29.0 s. Pre-optimization engine comparisons
+(Rust vs LIBSVM: 0.136/2.67 s, 3.41/11.53 s, 38.58/49.40 s for small,
+medium, large at eight threads) and the older scaling table (large 1 thread:
+210.2 s) remain archived in the raw CSV files below.
 
 These are workload-specific measurements, not universal guarantees. The
 single-thread large runs were sensitive to background load; raw measurements
