@@ -1,0 +1,8 @@
+{
+  "tag": "large",
+  "genes": 547,
+  "cell_types": 22,
+  "samples": 50,
+  "perm": 100,
+  "seed": 20261075
+}

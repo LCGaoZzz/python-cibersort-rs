@@ -1,0 +1,7 @@
+fixture_version=2
+generator_seed=20260814
+genes=330
+cell_types=22
+samples=18
+noise_model=multiplicative_lognormal_sd_0.015
+intended_use=CIBERSORT_v1.04_perm0_and_perm100_correctness_benchmark

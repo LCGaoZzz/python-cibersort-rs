@@ -1,0 +1,39 @@
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.dylib
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+.tmp-*
+
+build/
+dist/
+*.egg-info/
+target_staging/
+rust/target/
+
+# Forensic inputs and license-restricted upstream material are local only.
+baseline/
+cli_smoke/
+
+# Transient benchmark/test logs and interrupted-run helpers.
+benchmarks/*.log
+benchmarks/*.err
+benchmarks/profile_results.txt
+benchmarks/compare_log.txt
+benchmarks/finish_benchmarks.py
+benchmarks/rerun_large_t1.py
+benchmarks/rerun_large_t1.csv
+benchmarks/finish_log.txt
+benchmarks/rerun_log.txt
+tests/final_pytest.log
+
+# Local editor and OS state.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

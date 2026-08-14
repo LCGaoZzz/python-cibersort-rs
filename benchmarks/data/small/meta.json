@@ -1,0 +1,8 @@
+{
+  "tag": "small",
+  "genes": 100,
+  "cell_types": 8,
+  "samples": 4,
+  "perm": 100,
+  "seed": 20260992
+}

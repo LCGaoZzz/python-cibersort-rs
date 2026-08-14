@@ -1,0 +1,8 @@
+{
+  "tag": "medium",
+  "genes": 300,
+  "cell_types": 12,
+  "samples": 20,
+  "perm": 100,
+  "seed": 20261068
+}

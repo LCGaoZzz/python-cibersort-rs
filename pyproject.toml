@@ -1,0 +1,59 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "python-cibersort-rs"
+version = "0.1.0"
+description = "A reproducible Python implementation of CIBERSORT v1.04 with a native Rust accelerator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "LCGaoZzz" }]
+keywords = ["cibersort", "deconvolution", "nu-svr", "transcriptomics", "bioinformatics", "rust"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Rust",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "libsvm-official>=3.25",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "psutil>=5.9"]
+dev = ["maturin>=1.7,<2", "pytest>=7", "psutil>=5.9"]
+
+[project.scripts]
+cibersort = "python_cibersort.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/LCGaoZzz/python-cibersort-rs"
+Repository = "https://github.com/LCGaoZzz/python-cibersort-rs"
+Issues = "https://github.com/LCGaoZzz/python-cibersort-rs/issues"
+Benchmarks = "https://github.com/LCGaoZzz/python-cibersort-rs/blob/main/benchmarks/BENCHMARK_REPORT.md"
+
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+python-source = "src"
+module-name = "python_cibersort._native"
+features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::FutureWarning", "ignore::DeprecationWarning"]
+markers = ["slow: full end-to-end oracle tests that take several minutes"]

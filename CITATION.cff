@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite this repository and the original CIBERSORT publication."
+title: "python-cibersort-rs"
+type: software
+version: 0.1.0
+date-released: 2026-08-14
+authors:
+  - name: "LCGaoZzz"
+repository-code: "https://github.com/LCGaoZzz/python-cibersort-rs"
+url: "https://github.com/LCGaoZzz/python-cibersort-rs"
+license: GPL-3.0-or-later
+preferred-citation:
+  type: article
+  title: "Robust enumeration of cell subsets from tissue expression profiles"
+  authors:
+    - family-names: Newman
+      given-names: Aaron M.
+    - family-names: Liu
+      given-names: Chih Long
+    - family-names: Green
+      given-names: Michael R.
+  journal: Nature Methods
+  volume: 12
+  start: 453
+  end: 457
+  year: 2015
+  doi: 10.1038/nmeth.3337

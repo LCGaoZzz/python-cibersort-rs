@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  quick-tests:
+    name: Quick tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build editable package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "maturin>=1.7,<2" pytest psutil
+          maturin develop --release
+      - name: Run quick tests
+        run: pytest -m "not slow"
+      - name: CLI smoke test
+        run: >-
+          cibersort tests/fixtures/permutation_safe/signature_matrix.tsv
+          tests/fixtures/permutation_safe/mixture.tsv
+          --out cibersort-smoke.tsv --perm 0 --no-qn --threads 2 --engine rust
+
+  oracle-tests:
+    name: Full numerical oracle suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build editable package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "maturin>=1.7,<2" pytest psutil
+          maturin develop --release
+      - name: Run slow oracle tests
+        run: pytest -m slow
