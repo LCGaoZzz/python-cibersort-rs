@@ -40,7 +40,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           command: build
-          args: --release --out dist
+          args: --release --out dist ${{ matrix.os == 'ubuntu-latest' && format('-i python{0}', matrix.python) || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-py${{ matrix.python }}-${{ matrix.target }}
