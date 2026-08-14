@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-08-14
 
 - Performance: the Rust nu-SVR solver now maintains a signed permuted Gram
   matrix with zero-copy `get_Q` row access and auto-vectorized gradient
