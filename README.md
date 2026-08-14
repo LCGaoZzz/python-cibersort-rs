@@ -44,7 +44,7 @@ Download the wheel for your Python version and operating system from
 then install it:
 
 ```bash
-python -m pip install python_cibersort_rs-0.1.0-*.whl
+python -m pip install python_cibersort_rs-*.whl
 ```
 
 ### Build from source
