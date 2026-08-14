@@ -67,6 +67,10 @@ pub struct NuSvr<'a> {
     eps: f64,
     c: f64,
     unshrink: bool,
+    // signed permuted Gram: qs[i*n+j] = sign[i]*sign[j]*gram[index[i]][index[j]]
+    // (n = 2l), kept in sync by swap_index so get_Q is a zero-copy row slice;
+    // the f32 values are identical to the on-the-fly gather.
+    qs: Vec<f32>,
 }
 
 impl<'a> NuSvr<'a> {
@@ -76,6 +80,7 @@ impl<'a> NuSvr<'a> {
             qd[k] = gram.qd1[k];
             qd[k + l] = gram.qd1[k];
         }
+        let n = 2 * l;
         NuSvr {
             gram,
             l,
@@ -93,21 +98,15 @@ impl<'a> NuSvr<'a> {
             eps: 0.0,
             c: 0.0,
             unshrink: false,
+            qs: vec![0.0; n * n],
         }
     }
 
-    /// SVR_Q.get_Q(i, len): buf[j] = sign[i]*sign[j]*row[index[j]] (f32)
+    /// SVR_Q.get_Q(i, len) as a zero-copy slice of the signed permuted Gram.
     #[inline]
-    fn get_q(&self, i: usize, len: usize) -> Vec<f32> {
-        let real_i = self.index[i];
-        let si = self.sign[i];
-        let row = &self.gram.data[real_i * self.l..(real_i + 1) * self.l];
-        let mut buf = Vec::with_capacity(len);
-        for j in 0..len {
-            let v = row[self.index[j]];
-            buf.push(if si * self.sign[j] == 1 { v } else { -v });
-        }
-        buf
+    fn get_q(&self, i: usize, len: usize) -> &[f32] {
+        let n = 2 * self.l;
+        &self.qs[i * n..i * n + len]
     }
 
     #[inline]
@@ -140,6 +139,14 @@ impl<'a> NuSvr<'a> {
         self.p.swap(i, j);
         self.active_set.swap(i, j);
         self.g_bar.swap(i, j);
+        // keep qs = sign-permuted gram in sync: swap rows i,j then cols i,j
+        let n = 2 * self.l;
+        for c in 0..n {
+            self.qs.swap(i * n + c, j * n + c);
+        }
+        for r in 0..n {
+            self.qs.swap(r * n + i, r * n + j);
+        }
     }
 
     fn reconstruct_gradient(&mut self) {
@@ -155,7 +162,7 @@ impl<'a> NuSvr<'a> {
             .count();
         if nr_free * n > 2 * self.active_size * (n - self.active_size) {
             for i in self.active_size..n {
-                let qi = self.get_q(i, self.active_size);
+                let qi = &self.qs[i * n..i * n + self.active_size];
                 for j in 0..self.active_size {
                     if self.alpha_status[j] == FREE {
                         self.g[i] += self.alpha[j] * qi[j] as f64;
@@ -165,7 +172,7 @@ impl<'a> NuSvr<'a> {
         } else {
             for i in 0..self.active_size {
                 if self.alpha_status[i] == FREE {
-                    let qi = self.get_q(i, n);
+                    let qi = &self.qs[i * n..(i + 1) * n];
                     let alpha_i = self.alpha[i];
                     for j in self.active_size..n {
                         self.g[j] += alpha_i * qi[j] as f64;
@@ -200,13 +207,15 @@ impl<'a> NuSvr<'a> {
 
         let ip = gmaxp_idx;
         let inx = gmaxn_idx;
-        let qip = if ip != -1 {
-            Some(self.get_q(ip as usize, self.active_size))
+        let nn = 2 * self.l;
+        let act = self.active_size;
+        let qip: Option<&[f32]> = if ip != -1 {
+            Some(&self.qs[ip as usize * nn..ip as usize * nn + act])
         } else {
             None
         };
-        let qin = if inx != -1 {
-            Some(self.get_q(inx as usize, self.active_size))
+        let qin: Option<&[f32]> = if inx != -1 {
+            Some(&self.qs[inx as usize * nn..inx as usize * nn + act])
         } else {
             None
         };
@@ -354,6 +363,20 @@ impl<'a> NuSvr<'a> {
             self.index[k] = k;
             self.index[k + l] = k;
         }
+        // build the signed permuted Gram once per fit
+        {
+            let NuSvr { gram, index, sign, qs, l, .. } = self;
+            let li = *l;
+            for i in 0..n {
+                let real_i = index[i];
+                let si = sign[i];
+                let src = &gram.data[real_i * li..(real_i + 1) * li];
+                for j in 0..n {
+                    let v = src[index[j]];
+                    qs[i * n + j] = if si * sign[j] == 1 { v } else { -v };
+                }
+            }
+        }
         for i in 0..n {
             self.update_status(i);
             self.active_set[i] = i;
@@ -365,7 +388,7 @@ impl<'a> NuSvr<'a> {
         // initial gradient
         for i in 0..n {
             if !self.is_lower(i) {
-                let qi = self.get_q(i, n);
+                let qi = &self.qs[i * n..(i + 1) * n];
                 let alpha_i = self.alpha[i];
                 for j in 0..n {
                     self.g[j] += alpha_i * qi[j] as f64;
@@ -406,8 +429,9 @@ impl<'a> NuSvr<'a> {
             };
             iter += 1;
 
-            let qi = self.get_q(i, self.active_size);
-            let qj = self.get_q(j, self.active_size);
+            let active = self.active_size;
+            let qi: &[f32] = &self.qs[i * n..i * n + active];
+            let qj: &[f32] = &self.qs[j * n..j * n + active];
 
             let old_ai = self.alpha[i];
             let old_aj = self.alpha[j];
@@ -471,8 +495,12 @@ impl<'a> NuSvr<'a> {
 
             let dai = self.alpha[i] - old_ai;
             let daj = self.alpha[j] - old_aj;
-            for k in 0..self.active_size {
-                self.g[k] += qi[k] as f64 * dai + qj[k] as f64 * daj;
+            let active = self.active_size;
+            for (gk, (qik, qjk)) in self.g[..active]
+                .iter_mut()
+                .zip(qi[..active].iter().zip(qj[..active].iter()))
+            {
+                *gk += *qik as f64 * dai + *qjk as f64 * daj;
             }
 
             let ui = self.is_upper(i);
@@ -480,17 +508,17 @@ impl<'a> NuSvr<'a> {
             self.update_status(i);
             self.update_status(j);
             if ui != self.is_upper(i) {
-                let qif = self.get_q(i, n);
+                let qif = &self.qs[i * n..(i + 1) * n];
                 let sgn = if ui { -self.c } else { self.c };
-                for k in 0..n {
-                    self.g_bar[k] += sgn * qif[k] as f64;
+                for (gbk, qk) in self.g_bar.iter_mut().zip(qif.iter()) {
+                    *gbk += sgn * *qk as f64;
                 }
             }
             if uj != self.is_upper(j) {
-                let qjf = self.get_q(j, n);
+                let qjf = &self.qs[j * n..(j + 1) * n];
                 let sgn = if uj { -self.c } else { self.c };
-                for k in 0..n {
-                    self.g_bar[k] += sgn * qjf[k] as f64;
+                for (gbk, qk) in self.g_bar.iter_mut().zip(qjf.iter()) {
+                    *gbk += sgn * *qk as f64;
                 }
             }
         }
